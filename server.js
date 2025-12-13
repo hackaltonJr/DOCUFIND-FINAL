@@ -67,7 +67,7 @@ let originOption;
 // Allow CORS and allow credentials (cookies) from the calculated origins
 app.use(
   cors({
-    origin: originOption, // explicit origin(s) instead of `true`
+    origin: true, // explicit origin(s) instead of `true`
     credentials: true,
     optionsSuccessStatus: 200,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
