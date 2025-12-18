@@ -47,6 +47,34 @@ router.get(
   asyncHandler(documentController.getDocumentById)
 );
 
+// CLAIM document (creates a pending claim request)
+router.post(
+  "/:id/claim",
+  validateObjectId,
+  asyncHandler(documentController.claimDocument)
+);
+
+// LIST claim requests for a document
+router.get(
+  "/:id/claims",
+  validateObjectId,
+  asyncHandler(documentController.getClaimsForDocument)
+);
+
+// APPROVE a claim request (admin)
+router.put(
+  "/:id/claims/:claimId/approve",
+  validateObjectId,
+  asyncHandler(documentController.approveClaim)
+);
+
+// REJECT a claim request (admin)
+router.put(
+  "/:id/claims/:claimId/reject",
+  validateObjectId,
+  asyncHandler(documentController.rejectClaim)
+);
+
 // UPDATE document
 router.put(
   "/:id",
