@@ -63,17 +63,22 @@ let originOption;
   const unique = Array.from(new Set(origins));
   originOption = unique.length === 1 ? unique[0] : unique;
 }
+const corsOptionNextJs = {
+  origin: "http://localhost:9002",
+  credentials: true,
+};
 
-// Allow CORS and allow credentials (cookies) from the calculated origins
+// // Allow CORS and allow credentials (cookies) from the calculated origins
 app.use(
   cors({
-    origin: true, // explicit origin(s) instead of `true`
+    origin: corsOptionNextJs, // use the dynamically calculated origins instead
     credentials: true,
     optionsSuccessStatus: 200,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization", "Accept"],
   })
 );
+// app.use(cors(corsOptionNextJs));
 
 app.use(requestLogger);
 

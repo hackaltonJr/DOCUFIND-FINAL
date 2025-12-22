@@ -1,6 +1,33 @@
 const DocumentReport = require("../models/DocumentReport");
 const User = require("../models/User");
 const ClaimRequest = require("../models/ClaimRequest");
+const Notification = require("../models/Notification"); // added
+
+// helper to create a notification
+async function createClaimNotification({ userId, doc, claim, status }) {
+  const title =
+    status === "approved"
+      ? "Claim approved"
+      : status === "rejected"
+      ? "Claim rejected"
+      : "Claim update";
+  const message =
+    status === "approved"
+      ? `Your claim for "${doc.documentType}" has been approved.`
+      : `Your claim for "${doc.documentType}" has been rejected.`;
+
+  return Notification.create({
+    user: userId,
+    title,
+    message,
+    metadata: {
+      documentId: doc._id,
+      claimId: claim._id,
+      status,
+      documentType: doc.documentType,
+    },
+  });
+}
 
 // CREATE document report
 exports.createDocument = async (req, res, next) => {
@@ -194,6 +221,14 @@ exports.approveClaim = async (req, res, next) => {
     doc.claimedAt = new Date();
     await doc.save();
 
+    // notify claimant
+    await createClaimNotification({
+      userId: claim.claimant,
+      doc,
+      claim,
+      status: "approved",
+    });
+
     await claim.populate("claimant", "name email");
     res.json({
       message: "Claim approved and document marked as claimed",
@@ -221,6 +256,17 @@ exports.rejectClaim = async (req, res, next) => {
 
     claim.status = "rejected";
     await claim.save();
+
+    const doc = await DocumentReport.findById(id);
+    // notify claimant (even if doc missing, but guard)
+    if (doc) {
+      await createClaimNotification({
+        userId: claim.claimant,
+        doc,
+        claim,
+        status: "rejected",
+      });
+    }
 
     await claim.populate("claimant", "name email");
     res.json({

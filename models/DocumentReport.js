@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const ClaimRequest = require("./ClaimRequest");
 
 const documentSchema = new mongoose.Schema(
   {
@@ -12,13 +13,18 @@ const documentSchema = new mongoose.Schema(
       required: true,
     },
     reportedBy: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
+      type: String,
       required: true,
     },
     imageUrl: { type: String, default: undefined },
     imageFile: { type: Buffer, default: undefined },
-    reportDate: { type: Date, default: Date.now },
+    reportDate: { type: String, default: Date.now.toString() },
+    claimRequest: {
+      type: [mongoose.Schema.Types.ObjectId],
+      ref: "ClaimRequest",
+      default: null,
+    },
+    escalationReason: { type: String },
   },
   { timestamps: true }
 );
