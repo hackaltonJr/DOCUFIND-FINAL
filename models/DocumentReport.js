@@ -36,7 +36,6 @@ const documentReportSchema = new mongoose.Schema(
     imageUrl: { type: String },
     claimedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
     claimedAt: { type: Date },
-    claims: [claimSchema], // embedded claims array
     reportDate: { type: Date, default: Date.now },
   },
   { timestamps: true }
