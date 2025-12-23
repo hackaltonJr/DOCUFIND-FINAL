@@ -1,7 +1,6 @@
 const DocumentReport = require("../models/DocumentReport");
 const User = require("../models/User");
-const ClaimRequest = require("../models/ClaimRequest");
-const Notification = require("../models/Notification"); // added
+const Notification = require("../models/Notification");
 
 // helper to create a notification
 async function createClaimNotification({ userId, doc, claim, status }) {
@@ -120,56 +119,44 @@ exports.getDocumentById = async (req, res, next) => {
   }
 };
 
-// CLAIM document (create a pending claim request)
+// CLAIM document (create embedded claim)
 exports.claimDocument = async (req, res, next) => {
   try {
     const { id } = req.params;
     const { userId, notes } = req.body;
 
-    if (!userId) {
-      return res
-        .status(400)
-        .json({ error: "User ID is required to request a claim" });
-    }
+    if (!userId) return res.status(400).json({ error: "userId is required" });
 
     const user = await User.findById(userId);
     if (!user) return res.status(404).json({ error: "User not found" });
 
     const doc = await DocumentReport.findById(id);
     if (!doc) return res.status(404).json({ error: "Document not found" });
-
-    if (doc.status !== "found") {
+    if (doc.status !== "found")
       return res
         .status(400)
-        .json({ error: "Only 'found' documents can be requested for claim" });
-    }
+        .json({ error: "Document not available for claiming" });
 
-    // Prevent duplicate pending request by same user for same document
-    const existingPending = await ClaimRequest.findOne({
-      document: id,
-      claimant: userId,
-      status: "pending",
-    });
-    if (existingPending) {
+    // Check for duplicate pending claim
+    const existingPending = doc.claims.find(
+      (c) => String(c.claimant) === String(userId) && c.status === "pending"
+    );
+    if (existingPending)
       return res
-        .status(409)
-        .json({ error: "A pending claim already exists for this document" });
-    }
+        .status(400)
+        .json({ error: "You already have a pending claim for this document" });
 
-    const claim = await ClaimRequest.create({
-      document: id,
-      claimant: userId,
-      status: "pending",
-      notes,
-    });
+    doc.claims.push({ claimant: userId, notes, status: "pending" });
+    await doc.save();
+    await doc.populate("claims.claimant", "name email");
 
-    await claim.populate("claimant", "name email");
-    res.status(201).json({
-      message: "Claim request submitted. Awaiting admin approval.",
-      data: claim,
-    });
+    res
+      .status(201)
+      .json({
+        message: "Claim request submitted",
+        data: doc.claims[doc.claims.length - 1],
+      });
   } catch (err) {
-    console.error(err);
     next(err);
   }
 };
@@ -177,14 +164,12 @@ exports.claimDocument = async (req, res, next) => {
 // List claim requests for a document
 exports.getClaimsForDocument = async (req, res, next) => {
   try {
-    const { id } = req.params;
-    const doc = await DocumentReport.findById(id);
+    const doc = await DocumentReport.findById(req.params.id).populate(
+      "claims.claimant",
+      "name email avatarUrl"
+    );
     if (!doc) return res.status(404).json({ error: "Document not found" });
-
-    const claims = await ClaimRequest.find({ document: id })
-      .sort({ createdAt: -1 })
-      .populate("claimant", "name email");
-    res.json({ data: claims });
+    res.json(doc.claims);
   } catch (err) {
     next(err);
   }
@@ -196,44 +181,34 @@ exports.approveClaim = async (req, res, next) => {
   try {
     const { id, claimId } = req.params;
 
-    const claim = await ClaimRequest.findById(claimId);
-    if (!claim || String(claim.document) !== String(id)) {
-      return res.status(404).json({ error: "Claim request not found" });
-    }
-    if (claim.status !== "pending") {
+    const doc = await DocumentReport.findById(id);
+    if (!doc) return res.status(404).json({ error: "Document not found" });
+
+    const claim = doc.claims.id(claimId);
+    if (!claim) return res.status(404).json({ error: "Claim not found" });
+    if (claim.status !== "pending")
       return res
         .status(400)
         .json({ error: "Only pending claims can be approved" });
-    }
-
-    const doc = await DocumentReport.findById(id);
-    if (!doc) return res.status(404).json({ error: "Document not found" });
-    if (doc.status === "claimed") {
+    if (doc.status === "claimed")
       return res.status(400).json({ error: "Document already claimed" });
-    }
 
-    // Approve claim and mark document as claimed
     claim.status = "approved";
-    await claim.save();
-
+    claim.updatedAt = new Date();
     doc.status = "claimed";
     doc.claimedBy = claim.claimant;
     doc.claimedAt = new Date();
     await doc.save();
 
-    // notify claimant
     await createClaimNotification({
       userId: claim.claimant,
       doc,
       claim,
       status: "approved",
     });
+    await doc.populate("claims.claimant", "name email");
 
-    await claim.populate("claimant", "name email");
-    res.json({
-      message: "Claim approved and document marked as claimed",
-      data: { claim, document: doc },
-    });
+    res.json({ message: "Claim approved", data: { claim, document: doc } });
   } catch (err) {
     next(err);
   }
@@ -244,72 +219,100 @@ exports.rejectClaim = async (req, res, next) => {
   try {
     const { id, claimId } = req.params;
 
-    const claim = await ClaimRequest.findById(claimId);
-    if (!claim || String(claim.document) !== String(id)) {
-      return res.status(404).json({ error: "Claim request not found" });
-    }
-    if (claim.status !== "pending") {
+    const doc = await DocumentReport.findById(id);
+    if (!doc) return res.status(404).json({ error: "Document not found" });
+
+    const claim = doc.claims.id(claimId);
+    if (!claim) return res.status(404).json({ error: "Claim not found" });
+    if (claim.status !== "pending")
       return res
         .status(400)
         .json({ error: "Only pending claims can be rejected" });
-    }
 
     claim.status = "rejected";
-    await claim.save();
+    claim.updatedAt = new Date();
+    await doc.save();
 
-    const doc = await DocumentReport.findById(id);
-    // notify claimant (even if doc missing, but guard)
-    if (doc) {
-      await createClaimNotification({
-        userId: claim.claimant,
-        doc,
-        claim,
-        status: "rejected",
-      });
+    await createClaimNotification({
+      userId: claim.claimant,
+      doc,
+      claim,
+      status: "rejected",
+    });
+    await doc.populate("claims.claimant", "name email");
+
+    res.json({ message: "Claim rejected", data: claim });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// ADMIN: update document report status (found/lost)
+// - only admin can update status to "found"
+// - only admin can update status to "lost" if there are no claims or all claims are rejected
+exports.updateDocumentStatus = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+
+    if (!status || (status !== "found" && status !== "lost")) {
+      return res.status(400).json({ error: "Invalid status value" });
     }
 
-    await claim.populate("claimant", "name email");
-    res.json({
-      message: "Claim rejected",
-      data: claim,
-    });
+    const doc = await DocumentReport.findById(id);
+    if (!doc) return res.status(404).json({ error: "Document not found" });
+
+    // Check if trying to set status to "lost" while there are pending/approved claims
+    if (status === "lost") {
+      const hasActiveClaims = doc.claims.some((c) => c.status !== "rejected");
+      if (hasActiveClaims) {
+        return res
+          .status(400)
+          .json({
+            error: "Cannot set status to 'lost' while there are active claims",
+          });
+      }
+    }
+
+    doc.status = status;
+    await doc.save();
+
+    res.json({ message: `Document status updated to ${status}`, data: doc });
   } catch (err) {
     next(err);
   }
 };
 
-// UPDATE document
+// ADMIN: update document report (all fields)
+// - only admin can update document reports
 exports.updateDocument = async (req, res, next) => {
   try {
-    const doc = await DocumentReport.findById(req.params.id);
+    const { id } = req.params;
+
+    const updates = req.body;
+    if (updates.dateLost) updates.dateLost = new Date(updates.dateLost);
+
+    const doc = await DocumentReport.findByIdAndUpdate(id, updates, {
+      new: true,
+    });
     if (!doc) return res.status(404).json({ error: "Document not found" });
 
-    const allowedFields = [
-      "documentType",
-      "description",
-      "dateLost",
-      "location",
-      "status",
-      "imageUrl",
-    ];
-
-    allowedFields.forEach((field) => {
-      if (req.body[field] !== undefined) doc[field] = req.body[field];
-    });
-
-    await doc.save();
-    res.json(doc);
+    res.json({ message: "Document updated", data: doc });
   } catch (err) {
     next(err);
   }
 };
 
-// DELETE document
+// ADMIN: delete document report
+// - only admin can delete document reports
 exports.deleteDocument = async (req, res, next) => {
   try {
-    const doc = await DocumentReport.findByIdAndDelete(req.params.id);
+    const { id } = req.params;
+
+    const doc = await DocumentReport.findByIdAndDelete(id);
     if (!doc) return res.status(404).json({ error: "Document not found" });
-    res.status(204).send();
+
+    res.json({ message: "Document deleted" });
   } catch (err) {
     next(err);
   }
