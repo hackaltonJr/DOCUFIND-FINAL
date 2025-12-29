@@ -20,6 +20,7 @@ async function createClaimNotification({ userId, doc, claim, status }) {
     user: userId,
     title,
     message,
+    isRead: false, // matches your 'read' field
     metadata: {
       documentId: doc._id,
       claimId: claim._id,
@@ -202,8 +203,9 @@ exports.approveClaim = async (req, res, next) => {
     doc.claimedAt = new Date();
     await doc.save();
 
+    // 🎯 This creates the notification for the claimant (finder)
     await createClaimNotification({
-      userId: claim.claimant,
+      userId: claim.claimant, // the finder's user ID
       doc,
       claim,
       status: "approved",
