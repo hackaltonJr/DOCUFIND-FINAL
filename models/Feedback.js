@@ -8,10 +8,15 @@ const feedbackSchema = new mongoose.Schema(
       ref: "User",
       required: true,
     },
+    adminNotes: { type: String, required: false },
     subject: { type: String, required: false },
     message: { type: String, required: true },
     rating: { type: Number, required: false },
-    status: { type: String, enum: ["pending", "resolved"], default: "pending" },
+    status: {
+      type: String,
+      enum: ["pending", "resolved", "reviewed"],
+      default: "pending",
+    },
     date: { type: Date, default: Date.now },
   },
   { timestamps: { createdAt: true, updatedAt: false } }
