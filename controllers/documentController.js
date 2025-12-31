@@ -5,25 +5,28 @@ const ClaimRequest = require("../models/ClaimRequest"); // added
 
 // helper to create a notification
 async function createClaimNotification({ userId, doc, claim, status }) {
-  const title =
-    status === "approved"
-      ? "Claim approved"
-      : status === "rejected"
-      ? "Claim rejected"
-      : "Claim update";
-  const message =
-    status === "approved"
-      ? `Your claim for "${doc.documentType}" has been approved.`
-      : `Your claim for "${doc.documentType}" has been rejected.`;
+  let title = "Claim update";
+  let message = `Your claim for "${doc.documentType}" was updated.`;
+
+  if (status === "approved") {
+    title = "Claim approved";
+    message = `Your claim for "${doc.documentType}" has been approved.`;
+  } else if (status === "rejected") {
+    title = "Claim rejected";
+    message = `Your claim for "${doc.documentType}" has been rejected.`;
+  } else if (status === "created") {
+    title = "New claim submitted";
+    message = `A new claim was submitted for "${doc.documentType}".`;
+  }
 
   return Notification.create({
     user: userId,
     title,
     message,
-    isRead: false, // matches your 'read' field
+    isRead: false, // keeps unread count correct
     metadata: {
       documentId: doc._id,
-      claimId: claim._id,
+      claimId: claim?._id,
       status,
       documentType: doc.documentType,
     },
@@ -125,9 +128,16 @@ exports.getDocumentById = async (req, res, next) => {
 exports.claimDocument = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { userId, notes } = req.body;
+    const userId =
+      req.user?.id || req.user?._id || req.body.userId || req.body.claimantId;
+    const notes = req.body.notes;
 
-    if (!userId) return res.status(400).json({ error: "userId is required" });
+    if (!userId) {
+      return res.status(400).json({
+        error:
+          "userId is required (or provide claimantId, or authenticate so req.user is set)",
+      });
+    }
 
     const user = await User.findById(userId);
     if (!user) return res.status(404).json({ error: "User not found" });
@@ -155,6 +165,16 @@ exports.claimDocument = async (req, res, next) => {
       notes,
       status: "pending",
     });
+
+    // Notify RC staff (document reporter) that a new claim was submitted
+    if (doc.reportedBy) {
+      await createClaimNotification({
+        userId: doc.reportedBy,
+        doc,
+        claim,
+        status: "created",
+      });
+    }
 
     await claim.populate("claimant", "name email");
     res.status(201).json({ message: "Claim request submitted", data: claim });
@@ -203,9 +223,9 @@ exports.approveClaim = async (req, res, next) => {
     doc.claimedAt = new Date();
     await doc.save();
 
-    // 🎯 This creates the notification for the claimant (finder)
+    // Notify claimant (kept unread to bump their notification count)
     await createClaimNotification({
-      userId: claim.claimant, // the finder's user ID
+      userId: claim.claimant,
       doc,
       claim,
       status: "approved",
