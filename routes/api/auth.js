@@ -31,7 +31,7 @@ const cookieOptions = {
 // ---- Routes ----
 
 // SIGNUP
-router.post("/signup", async (req, res, next) => {
+router.post("/", async (req, res, next) => {
   try {
     const { name, email, password, role } = req.body;
 

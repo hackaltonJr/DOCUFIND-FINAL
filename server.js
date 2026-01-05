@@ -82,7 +82,7 @@ app.use(
 
 app.use(requestLogger);
 
-app.use("/api", apiRouter);
+app.use("/", apiRouter);
 
 app.use((req, res, next) => {
   res.status(404).json({
