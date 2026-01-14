@@ -7,11 +7,13 @@ const createUserSchema = Joi.object({
   avatarUrl: Joi.string().uri().optional(),
   role: Joi.string()
     .valid("reporter", "finder", "rc_staff", "police", "admin")
-    .required(),
-  status: Joi.string().valid("active", "suspended", "archived").optional(),
-  credibilityScore: Joi.number().min(0).max(100).optional(),
+    .default("reporter"),
+  status: Joi.string()
+    .valid("active", "suspended", "archived")
+    .default("active"),
+  credibilityScore: Joi.number().min(0).max(100).default(100),
   phoneNumber: Joi.string().optional(),
-  preferedContactMethod: Joi.string().valid("email", "phone").optional(),
+  preferredContactMethod: Joi.string().valid("email", "phone").default("email"),
 });
 
 const updateUserSchema = Joi.object({
@@ -25,7 +27,7 @@ const updateUserSchema = Joi.object({
   status: Joi.string().valid("active", "suspended", "archived").optional(),
   credibilityScore: Joi.number().min(0).max(100).optional(),
   phoneNumber: Joi.string().optional(),
-  preferedContactMethod: Joi.string().valid("email", "phone").optional(),
+  preferredContactMethod: Joi.string().valid("email", "phone").optional(),
 });
 
 function validateCreateUser(req, res, next) {
