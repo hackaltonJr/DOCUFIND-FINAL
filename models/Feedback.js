@@ -1,4 +1,3 @@
-const { string } = require("joi");
 const mongoose = require("mongoose");
 
 const feedbackSchema = new mongoose.Schema(
@@ -8,15 +7,17 @@ const feedbackSchema = new mongoose.Schema(
       ref: "User",
       required: true,
     },
-    adminNotes: { type: String, required: false },
-    subject: { type: String, required: false },
+    userName: { type: String },
+    subject: { type: String, required: true },
     message: { type: String, required: true },
-    rating: { type: Number, required: false },
+    rating: { type: Number },
     status: {
       type: String,
-      enum: ["pending", "resolved", "reviewed"],
-      default: "pending",
+      enum: ["open", "resolved"],
+      default: "open",
     },
+    response: { type: String },
+    adminNotes: { type: String },
     date: { type: Date, default: Date.now },
   },
   { timestamps: { createdAt: true, updatedAt: false } }

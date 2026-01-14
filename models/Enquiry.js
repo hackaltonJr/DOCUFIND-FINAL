@@ -2,17 +2,23 @@ const mongoose = require("mongoose");
 
 const enquirySchema = new mongoose.Schema(
   {
-    name: { type: String, required: true },
+    user: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
+    name: { type: String },
     email: { type: String, required: true },
     subject: { type: String, required: true },
-    message: { type: String, required: true },
+    question: { type: String, required: true },
     status: {
       type: String,
-      enum: ["open", "closed", "resolved"],
+      enum: ["open", "resolved"],
       default: "open",
     },
+    response: { type: String },
+    date: { type: Date, default: Date.now },
   },
-  { timestamps: { createdAt: true, updatedAt: false } }
+  { timestamps: true }
 );
 
 module.exports = mongoose.model("Enquiry", enquirySchema);

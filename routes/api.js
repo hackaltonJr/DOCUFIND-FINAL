@@ -1,8 +1,7 @@
 const express = require("express");
 const router = express.Router();
 
-// router.use("/api", require("./routes/api"));
-router.use("/auth", require("./auth"));
+router.use("/auth", require("./api/auth"));
 router.use("/users", require("./users"));
 router.use("/documents", require("./documents"));
 router.use("/feedback", require("./feedback"));

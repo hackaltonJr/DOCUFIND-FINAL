@@ -12,16 +12,16 @@ const claimRequestSchema = new mongoose.Schema(
       ref: "User",
       required: true,
     },
+    claimantName: { type: String },
     status: {
       type: String,
-      enum: ["pending", "approved", "rejected"],
+      enum: ["pending", "approved", "rejected", "under_review"],
       default: "pending",
     },
+    evidence: { type: String },
     notes: { type: String },
-    createdAt: { type: Date, default: Date.now },
-    updatedAt: { type: Date, default: Date.now },
   },
-  { timestamps: false }
+  { timestamps: true }
 );
 
 claimRequestSchema.index({ document: 1, claimant: 1, status: 1 });

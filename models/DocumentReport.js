@@ -1,30 +1,17 @@
 const mongoose = require("mongoose");
 
-const claimSchema = new mongoose.Schema({
-  claimant: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "User",
-    required: true,
-  },
-  status: {
-    type: String,
-    enum: ["pending", "approved", "rejected"],
-    default: "pending",
-  },
-  notes: { type: String },
-  createdAt: { type: Date, default: Date.now },
-  updatedAt: { type: Date, default: Date.now },
-});
-
 const documentReportSchema = new mongoose.Schema(
   {
     documentType: { type: String, required: true },
     description: { type: String },
-    location: { type: String },
     dateLost: { type: Date },
+    dateFound: { type: Date },
+    location: { type: String },
+    whereFound: { type: String },
+    lastSeenLocation: { type: String },
     status: {
       type: String,
-      enum: ["lost", "found", "claimed"],
+      enum: ["lost", "found", "claimed", "verified", "handed_over"],
       default: "lost",
     },
     reportedBy: {
@@ -32,10 +19,16 @@ const documentReportSchema = new mongoose.Schema(
       ref: "User",
       required: true,
     },
+    reporterName: { type: String },
     imageFile: { type: Buffer },
     imageUrl: { type: String },
+    holderName: { type: String },
+    documentNumber: { type: String },
+    contactPhone: { type: String },
+    contactEmail: { type: String },
     claimedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
     claimedAt: { type: Date },
+    isClaimed: { type: Boolean, default: false },
     reportDate: { type: Date, default: Date.now },
   },
   { timestamps: true }
