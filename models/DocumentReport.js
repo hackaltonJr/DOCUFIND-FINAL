@@ -4,8 +4,8 @@ const documentReportSchema = new mongoose.Schema(
   {
     documentType: { type: String, required: true },
     description: { type: String },
-    dateLost: { type: Date },
-    dateFound: { type: Date },
+    dateLost: { type: String },
+    dateFound: { type: String },
     location: { type: String },
     whereFound: { type: String },
     lastSeenLocation: { type: String },

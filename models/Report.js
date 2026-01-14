@@ -12,7 +12,7 @@ const reportSchema = new mongoose.Schema(
     holderName: { type: String, required: true },
     description: { type: String, required: true },
     lastSeenLocation: { type: String, required: true },
-    dateLost: { type: Date, required: true },
+    dateLost: { type: String, required: true },
     contactEmail: { type: String, required: true },
     contactPhone: { type: String, required: true },
     rcStaffMember: {
